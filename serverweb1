@@ -1,0 +1,51 @@
+#!/bin/bash
+yum -y install httpd &> /dev/null && echo "安装httpd成功"
+yum -y install rsync &> /dev/null && echo "安装rsync成功"
+
+cat > /etc/rsyncd.conf << END
+uid = apache
+gid = apache
+use chroot = yes
+max connections = 4
+pid file = /var/run/rsyncd.pid
+exclude = lost+found/
+transfer logging = yes
+timeout = 900
+ignore nonreadable = yes
+dont compress   = *.gz *.tgz *.zip *.z *.Z *.rpm *.deb *.bz2 *.iso
+
+[webshare]
+         path = /var/www/html
+         comment = www.abc.com html page
+         read only = no
+         auth users=user01 user02
+         secrets file=/etc/rsyncd_user.db 
+END
+
+echo "/usr/bin/rsync --daemon" >> /etc/rc.local
+chmod +x /etc/rc.d/rc.local
+pkill -9 rsync ; rm -fr /var/run/rsyncd.pid
+source  /etc/rc.local
+netstat -tnlp |grep :873
+chown apache.apache /var/www/html/
+
+service httpd start
+chkconfig httpd on
+
+
+
+#将相关配置文件同步到webserver2
+#rsync -avzR /etc/rsyncd.conf /etc/rsyncd_user.db /webshare/ root@192.168.0.15:/
+#rsync --daemon
+
+
+
+
+
+
+
+
+
+
+
+

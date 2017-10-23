@@ -1,0 +1,181 @@
+#！/bin/bash
+mkdir /etc/nginx/key
+cd /etc/nginx/key/
+openssl genrsa 2048 > servera-web.key
+
+
+expect << EOF > /dev/null 2>&1
+spawn openssl req -new -key servera-web.key -out servera-web.csr
+expect "[XX]:"
+send "CN\r"
+expect "[]:"
+send "GD\r"
+expect "[Default City]:"
+send "GZ\r"
+expect "[Default Company Ltd]:"
+send "UPLOOKING\r"
+expect "[]:"
+send "IT\r"
+expect "[]:"
+send "www.uplooking.com"
+expect "[]:"
+send "web@uplooking.com"
+expect "[]:"
+send "\n"
+expect "[]:"
+send "\n"
+expect eof
+EOF
+
+
+expect <<EOF &> /dev/null
+spawn ssh-keygen
+ "(/root/.ssh/id_rsa):"
+send "\r"
+expect "(empty for no passphrase):"
+send "\r"
+expect "again:"
+send "\r"
+expect "is:"
+send "\n"
+expect eof
+EOF
+
+expect <<EOF &> /dev/null
+spawn ssh-copy-id root@172.25.21.10
+expect "password:"
+send "uplooking\r"
+expect eof
+EOF
+
+scp servera-web.csr 172.25.21.11:~
+
+
+ssh root@172.25.21.11
+setenforce 0
+
+expect <<EOF &> /dev/null
+spawn openssl genrsa -des3 -out ca.key 4096
+expect "ca.key:"
+send "redhat\n"
+expect "ca.key:"
+send "redhat\n"
+expect eof
+EOF
+
+
+
+expect <<EOF &> /dev/null
+spawn openssl req -new -x509 -days 3650 -key ca.key -out ca.crt
+expect "ca.key"
+send "redhat"
+expect "[XX]:"
+send "CN\r"
+expect "[XX]:"
+send "CN\r"
+expect "[]:"
+send "GD\r"
+expect "[Default City]:"
+send "GZ\r"
+expect "[Default Company Ltd]:"
+send "\n"
+expect "[]:"
+send "\n"
+expect "[]:"
+send "ca.uplooking.com"
+expect "[]:"
+send "\n"
+expect eof
+EOF
+
+
+expect <<EOF &> /dev/null
+spawn openssl x509 -req -days 365 -in servera-web.csr -CA ca.crt -CAkey ca.key -set_serial 01 -out servera-web.crt
+expect "ca.key:"
+send "redhat\r"
+expect eof
+EOF
+
+
+expect <<EOF &> /dev/null
+spawn ssh-keygen
+expect "(/root/.ssh/id_rsa):"
+send "\r"
+expect "(empty for no passphrase):"
+send "\r"
+expect "again:"
+send "\r"
+expect "is:"
+send "\n"
+expect eof
+EOF
+
+scp servera-web.crt 172.25.21.10:/etc/nginx/key/
+
+exit\n
+cd /etc/nginx/key/
+cat < /etc/nginx/conf.d/uplooking.com.conf << END
+server {
+    listen       443 ssl;
+    server_name  www.uplooking.com; 
+
+    ssl_certificate      /etc/nginx/key/servera-web.crt;
+    ssl_certificate_key  /etc/nginx/key/servera-web.key;
+
+    ssl_session_cache shared:SSL:1m;
+    ssl_session_timeout  5m;
+
+    ssl_ciphers  HIGH:!aNULL:!MD5;    
+
+    ssl_prefer_server_ciphers   on;
+
+        root   /usr/share/nginx/uplooking.com;
+        index  index.html index.htm;
+}
+END
+
+mkdir -p /usr/share/nginx/uplooking.com
+echo ssl > /usr/share/nginx/uplooking.com/index.html
+systemctl reload nginx
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

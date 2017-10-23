@@ -1,0 +1,198 @@
+#!/bin/bash
+#serverf是server端 172.25.21.15
+timedatectl set-timezone Asia/Shanghai 
+ntpdate -u 172.25.254.254 ;  setenforce 0
+expect <<EOF &> /dev/null
+spawn lftp 172.25.254.250:/notes/project/software/zabbix
+expect ">"
+send "mirror zabbix3.2\n"
+expect ">"
+send "quit\n"
+expect eof
+EOF
+
+cd zabbix3.2
+tar xf zabbix-3.2.7.tar.gz -C /usr/local/src/
+yum install gcc gcc-c++ mariadb-devel libxml2-devel net-snmp-devel libcurl-devel -y &> /dev/null
+
+# >安装源码编译需要的依赖包
+cd /usr/local/src/zabbix-3.2.7/
+./configure --prefix=/usr/local/zabbix --enable-server --with-mysql --with-net-snmp --with-libcurl --with-libxml2 --enable-agent --enable-ipv6
+make && make install
+useradd zabbix
+sed -i 's/DBHost=.*/DBHost=172.25.21.17/' /usr/local/zabbix/etc/zabbix_server.conf
+sed -i 's/DBName=.*/DBName=zabbix/' /usr/local/zabbix/etc/zabbix_server.conf
+sed -i 's/DBUser=.*/DBUser=zabbix/' /usr/local/zabbix/etc/zabbix_server.conf
+sed -i 's/DBPassword=.*/DBPassword=uplooking/' /usr/local/zabbix/etc/zabbix_server.conf
+cd /usr/local/zabbix/sbin/
+./zabbix_server 
+netstat -tnlp |grep zabbix
+
+
+expect <<EOF &> /dev/null
+spawn ssh-keygen
+expect "(/root/.ssh/id_rsa):"
+send "\r"
+expect "(empty for no passphrase):"
+send "\r"
+expect "again:"
+send "\r"
+expect "is:"
+send "\n"
+expect eof
+EOF
+
+expect <<EOF &> /dev/null
+spawn ssh-copy-id root@172.25.21.17
+expect "password:"
+send "uplooking\r"
+expect eof
+EOF
+ssh root@172.25.21.17
+
+#serverh是Database端 172.25.21.17
+timedatectl set-timezone Asia/Shanghai 
+ntpdate -u 172.25.254.254 ;  setenforce 0
+yum -y install mariadb-server mariadb &> /dev/null
+systemctl start mariadb
+
+expect <<EOF &> /dev/null
+spawn ssh-keygen
+expect "(/root/.ssh/id_rsa):"
+send "\r"
+expect "(empty for no passphrase):"
+send "\r"
+expect "again:"
+send "\r"
+expect "is:"
+send "\n"
+expect eof
+EOF
+
+expect <<EOF &> /dev/null
+spawn ssh-copy-id root@172.25.21.15
+expect "password:"
+send "uplooking\r"
+expect eof
+EOF
+ssh root@172.25.21.15
+
+# >登录上serverf这台服务器，将sql语句远程复制到数据库服务器上：
+cd /usr/local/src/zabbix-3.2.7/database/mysql/
+scp -r * 172.25.21.17:/root/ <<EOF &> /dev/null
+uplooking
+EOF
+exit
+#>mysql服务器将对应的sql语句进行导入的操作，三个sql文件的导入顺序不能出错：
+myaql -e "create database zabbix;"
+myaql -e "update mysql.user set password=password('redhat') where user='root';"
+myaql -e "grant all on zabbix.* to zabbix@'%' identified by 'uplooking';"
+myaql -e "flush privileges;"
+mysql -uzabbix -puplooking zabbix < /root/schema.sql
+mysql -uzabbix -puplooking zabbix < /root/images.sql 
+mysql -uzabbix -puplooking zabbix < /root/data.sql
+expect <<EOF &> /dev/null
+spawn ssh-keygen
+expect "(/root/.ssh/id_rsa):"
+send "\r"
+expect "(empty for no passphrase):"
+send "\r"
+expect "again:"
+send "\r"
+expect "is:"
+send "\n"
+expect eof
+EOF
+
+expect <<EOF &> /dev/null
+spawn ssh-copy-id root@172.25.21.16
+expect "password:"
+send "uplooking\r"
+expect eof
+EOF
+ssh root@172.25.21.16
+#serverg是Web端 172.25.21.16
+expect <<EOF &> /dev/null
+spawn lftp 172.25.254.250:/notes/project/software/zabbix
+expect ">"
+send "mirror zabbix3.2\n"
+expect ">"
+send "quit\n"
+expect eof
+EOF
+cd zabbix3.2
+yum -y install httpd php php-mysql &> /dev/null
+yum -y localinstall php-mbstring-5.4.16-23.el7_0.3.x86_64.rpm php-bcmath-5.4.16-23.el7_0.3.x86_64.rpm &> /dev/null
+sed -i 's/php_value date.timezone.*/php_value date.timezone Asia/Shanghai/' /etc/httpd/conf.d/zabbix.conf 
+
+expect <<EOF &> /dev/null
+spawn ssh-keygen
+expect "(/root/.ssh/id_rsa):"
+send "\r"
+expect "(empty for no passphrase):"
+send "\r"
+expect "again:"
+send "\r"
+expect "is:"
+send "\n"
+expect eof
+EOF
+
+expect <<EOF &> /dev/null
+spawn ssh-copy-id root@172.25.21.14
+expect "password:"
+send "uplooking\r"
+expect eof
+EOF
+ssh root@172.25.21.14
+#servere是agent端 172.25.21.14
+timedatectl set-timezone Asia/Shanghai 
+ntpdate -u 172.25.254.254 ;  setenforce 0
+expect <<EOF &> /dev/null
+spawn lftp 172.25.254.250:/notes/project/software/zabbix
+expect ">"
+send "mirror zabbix3.2\n"
+expect ">"
+send "quit\n"
+expect eof
+EOF
+cd zabbix3.2
+rpm -ivh zabbix-agent-3.2.7-1.el7.x86_64.rpm &> /dev/null
+yum -y install net-snmp net-snmp-utils &> /dev/null
+sed -i 's/Server=.*/Server=172.25.21.15/' /etc/zabbix/zabbix_agentd.conf
+sed -i 's/ServerActive=.*/ServerActive=172.25.21.15/' /etc/zabbix/zabbix_agentd.conf 
+sed -i 's/Hostname.*/Hostname=servera.pod21.example.com/' /etc/zabbix/zabbix_agentd.conf
+sed -i 's/UnsafeUserParameters=.*/UnsafeUserParameters=1/' /etc/zabbix/zabbix_agentd.conf
+systemctl start zabbix-agent
+systemctl enable zabbix-agent
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

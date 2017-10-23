@@ -1,0 +1,26 @@
+#!/bin/bash
+iptables -F
+setenforce 0
+ 
+rpm -ivh ftp://172.25.254.250/notes/project/UP200/UP200_nginx-master/pkg/nginx-1.8.0-1.el7.ngx.x86_64.rpm &> /dev/null && echo "nginx已成功安装！！！"
+systemctl start nginx
+
+
+cat > /etc/nginx/conf.d/default.conf << END
+server {
+    listen       80;
+    server_name  www.test.com;
+    charset utf-8;
+    access_log  /var/log/nginx/www.test.com.access.log  main;
+
+    location / {
+        root   /usr/share/nginx/test.com;
+        index  index.html index.htm;
+    }
+ }
+END
+
+mkdir -p /usr/share/nginx/test.com
+echo welcom to test.com > /usr/share/nginx/test.com/index.html
+nginx  -t
+

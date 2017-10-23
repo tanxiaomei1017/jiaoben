@@ -1,0 +1,260 @@
+#！/bin/bash
+
+setenforce 0
+iptables -F
+yum -y install bind chroot-bind &> /dev/null && echo "bind chroot-bind安装已经成功了!"
+
+cat >  /etc/named.conf << END
+options {
+	listen-on port 53 { 127.0.0.1; any; };
+	directory 	"/var/named";
+	dump-file 	"/var/named/data/cache_dump.db";
+	statistics-file "/var/named/data/named_stats.txt";
+	memstatistics-file "/var/named/data/named_mem_stats.txt";
+	allow-query     { localhost; any; };
+	recursion no;
+	dnssec-enable no;
+	dnssec-validation no;
+	dnssec-lookaside auto;
+	bindkeys-file "/etc/named.iscdlv.key";
+	managed-keys-directory "/var/named/dynamic";
+	pid-file "/run/named/named.pid";
+	session-keyfile "/run/named/session.key";
+};
+logging {
+        channel default_debug {
+                file "data/named.run";
+                severity dynamic;
+        };
+};
+view  dx {
+        match-clients { dx; zhdx; 172.25.21.19; !192.168.0.19; !192.168.1.19; };
+	zone "." IN {
+		type hint;
+		file "named.ca";
+	};
+	zone "abc.com" IN {
+		type master;
+		file "abc.com.dx.zone";	
+	};
+	include "/etc/named.rfc1912.zones";
+};
+view  wt {
+        match-clients { wt; zhlt; !172.25.21.19; 192.168.0.19; !192.168.1.19; };
+        zone "." IN {
+                type hint;
+                file "named.ca";
+        };
+        zone "abc.com" IN {
+                type master;
+                file "abc.com.wt.zone";
+        };
+	include "/etc/named.rfc1912.zones";
+};
+view  other {
+        match-clients { any; !172.25.21.19; !192.168.0.19; 192.168.1.19; };
+        zone "." IN {
+                type hint;
+                file "named.ca";
+        };
+        zone "abc.com" IN {
+                type master;
+                file "abc.com.other.zone";
+        };
+        include "/etc/named.rfc1912.zones";
+};
+include "/etc/named.root.key";
+include "/etc/dx.cfg";
+include "/etc/wt.cfg";
+include "/etc/zhdx.cfg";
+include "/etc/zhlt.cfg";
+END
+
+cd /var/named
+cat > /var/named/abc.com.dx.zone << END
+\$TTL 1D
+@	IN SOA	ns1.abc.com. rname.invalid. (
+					10	; serial
+					1D	; refresh
+					1H	; retry
+					1W	; expire
+					3H )	; minimum
+@	NS	ns1.abc.com.
+ns1     A       172.25.21.10
+www	A	192.168.11.1
+END
+
+cp abc.com.dx.zone abc.com.wt.zone 
+
+cat > /var/named/abc.com.wt.zone << END
+\$TTL 1D
+@       IN SOA  ns1.abc.com. rname.invalid. (
+                                        10      ; serial
+                                        1D      ; refresh
+                                        1H      ; retry
+                                        1W      ; expire
+                                        3H )    ; minimum
+@       NS      ns1.abc.com.
+ns1     A       172.25.21.10
+www     A       22.21.1.1
+END
+
+chgrp named abc.com.*
+named-checkconf
+
+named-checkzone  abc.com /var/named/abc.com.dx.zone
+named-checkzone  abc.com /var/named/abc.com.wt.zone
+named-checkzone  abc.com /var/named/abc.com.other.zone
+
+service named restart
+chkconfig named on
+
+
+tar czvf /tmp/dns_config.tar.gz /etc/dx.cfg /etc/wt.cfg /etc/zhdx.cfg /etc/zhlt.cfg  /etc/named.conf 
+scp /tmp/dns_config.tar.gz serverj21:/root/
+sed -i '/^'$1'/d' /root/.ssh/known_hosts
+expect <<EOF &> /dev/nul
+spawn ssh $1
+expect "no)?"
+send "yes\r"
+expect "password:"
+send "uplooking\r"
+expect "# "
+send "touch /root/\n"
+send "exit\n"	
+expect eof
+EOF
+
+ssh root@serverj21
+sed -i '/^'$1'/d' /root/.ssh/known_hosts
+expect <<EOF &> /dev/nul
+spawn ssh $1
+expect "no)?"
+send "yes\r"
+expect "password:"
+send "uplooking\r"
+expect "# "
+send "touch /root/\n"
+send "exit\n"	
+expect eof
+EOF
+
+
+tar xf dns_config.tar.gz -C /
+setenforce 0
+iptables -F
+
+yum -y install bind chroot-bind &> /dev/null && echo "bind chroot-bind安装已经成功了!"
+
+cat >  /etc/named.conf << END
+options {
+	listen-on port 53 { 127.0.0.1; any; };
+	directory 	"/var/named";
+	dump-file 	"/var/named/data/cache_dump.db";
+	statistics-file "/var/named/data/named_stats.txt";
+	memstatistics-file "/var/named/data/named_mem_stats.txt";
+	allow-query     { localhost; any; };
+	recursion no;
+	dnssec-enable no;
+	dnssec-validation no;
+	dnssec-lookaside auto;
+	bindkeys-file "/etc/named.iscdlv.key";
+	managed-keys-directory "/var/named/dynamic";
+	pid-file "/run/named/named.pid";
+	session-keyfile "/run/named/session.key";
+};
+logging {
+        channel default_debug {
+                file "data/named.run";
+                severity dynamic;
+        };
+};
+view  dx {
+        match-clients { dx; zhdx; 172.25.21.19; !192.168.0.19; !192.168.1.19; };
+        transfer-source 172.25.21.19;
+	zone "." IN {
+		type hint;
+		file "named.ca";
+	};
+	zone "abc.com" IN {
+		type slave;
+		masters { 172.25.21.10; };
+		file "slaves/abc.com.dx.zone";	
+	};
+	include "/etc/named.rfc1912.zones";
+};
+view  wt {
+        match-clients { wt; zhlt; !172.25.21.19; 192.168.0.19; !192.168.1.19; };
+        transfer-source 192.168.0.19;
+        zone "." IN {
+                type hint;
+                file "named.ca";
+        };
+        zone "abc.com" IN {
+                 type slave;
+                 masters { 192.168.0.10; };
+                file "slaves/abc.com.wt.zone";
+        };
+	include "/etc/named.rfc1912.zones";
+};
+view  other {
+        match-clients { any; !172.25.21.19; !192.168.0.19; 192.168.1.19; };
+        transfer-source 192.168.1.19;
+        zone "." IN {
+                type hint;
+                file "named.ca";
+        };
+        zone "abc.com" IN {
+                type slave;
+                masters { 192.168.1.10; };
+                file "slaves/abc.com.other.zone";
+        };
+        include "/etc/named.rfc1912.zones";
+};
+include "/etc/named.root.key";
+include "/etc/dx.cfg";
+include "/etc/wt.cfg";
+include "/etc/zhdx.cfg";
+include "/etc/zhlt.cfg";
+END
+
+service named start
+chkconfig named on
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

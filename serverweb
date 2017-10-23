@@ -1,0 +1,61 @@
+#!/bin/bash
+
+chown nobody.nobody /webserver/
+chmod 775 /webserver/
+cat > /etc/rsyncd.conf << END
+uid=nobody
+gid=nobody
+use chroot=yes
+port 873
+log file=/var/log/rsyncd.log
+pid file=/var/run/rsyncd.pid
+hosts allow=192.168.0.0/24
+motd file=/etc/rsyncd.welcome
+
+[webdata]
+path=/webserver
+comment= web root share with rsync
+read only=no
+dont compress=*.gz *.bz2 *.tgz *.rar *.zip *.rpm
+auth users=user01 user02
+secrets file=/etc/rsyncd_user.db
+END
+
+cat > /etc/rsyncd_user.db << END
+user01:123
+user02:456
+END
+
+chmod 600 /etc/rsyncd_user.db
+
+cat > /etc/rc.local << END
+/usr/bin/rsync --daemon
+END
+
+source  /etc/rc.local
+rsync -avzR /etc/rsyncd.conf /etc/rsyncd_user.db
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,19 @@
+#一.推送密钥对,关闭所有节点的防火墙与selinux
+ssh-keygen -t dsa
+
+
+#二、搭建mysql数据库
+yum -y install mariadb-server mariadb &> /dev/null && "数据库安装成功！！！"
+systemctl start mariadb &> /dev/null
+systemctl enable mariadb &> /dev/null
+
+#三、采用LNMP架构，搭建BBS论坛
+#ssh root@servere21
+yum -y install php php-mysql &> /dev/null && "php 安装成功！！！"
+rpm -ivh ftp://172.25.254.250/notes/project/UP200/UP200_nginx-master/pkg/nginx-1.8.1-1.el7.ngx.x86_64.rpm &> /dev/null && "nginx 安装成功！！！"
+rpm -ivh ftp://172.25.254.250/notes/project/UP200/UP200_nginx-master/pkg/spawn-fcgi-1.6.3-5.el7.x86_64.rpm &> /dev/null && "spawn-fcgi 安装成功！！！"
+
+cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.back
+
+
+

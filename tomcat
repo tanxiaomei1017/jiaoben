@@ -1,0 +1,61 @@
+#!/bin/bash
+wget -r ftp 172.25.254.250:/notes/project/UP200/UP200_tomcat-master/pkg &> /dev/null
+tar xf jdk-7u15-linux-x64.tar.gz -C /opt/
+mv /opt/jdk1.7.0_15/ /opt/java
+
+mkdir /usr/local/tomcat
+cd pkg
+tar -xf apache-tomcat-8.0.24.tar.gz  -C /usr/local/tomcat
+export JAVA_HOME=/opt/java
+./startup.sh
+ps -ef | grep tomcat &> /dev/null && "tomcat启动成功！！！"
+cd /home/tomcat/apache-tomcat-8.0.24/conf
+
+#jsvc的方式启动
+groupadd -g 888 tomcat
+useradd -g 888 -u 888 tomcat -s /sbin/nologin
+tar -czf - apache-tomcat-8.0.24/ | tar -xzf - -C /home/tomcat/
+cd bin/
+tar -xf commons-daemon-native.tar.gz
+cd commons-daemon-1.0.15-native-src/
+cd unix/
+./configure 
+yum -y install gcc &
+./configure   --with-java=/opt/java
+make
+cp jsvc /home/tomcat/apache-tomcat-8.0.24/bin/
+
+cd /home/tomcat/apache-tomcat-8.0.24/bin
+cp daemon.sh /etc/init.d/tomcat
+sed '1i\# chkconfig: 2345 20 10' /etc/init.d/tomcat
+sed '2i\CATALINA_HOME=/home/tomcat/apache-tomcat-8.0.24' /etc/init.d/tomcat
+sed '3i\CATALINA_BASE=/home/tomcat/apache-tomcat-8.0.24' /etc/init.d/tomcat
+sed '4i\JAVA_HOME=/usr/java/jdk1.7.0_79/' /etc/init.d/tomcat
+chkconfig --add tomcat
+chkconfig tomcat on
+
+chown tomcat. -R apache-tomcat-8.0.24/ 
+service tomcat start
+
+ps -ef | grep tomcat &> /dev/null && "tomcat 已起！！！"
+
+sed -i 's/Host name=.*/Host name="www.jsp.com"/' /home/tomcat/apache-tomcat-8.0.24/conf/server.xml
+sed -i 's/appBase=.*/appBase="jsp.com"/' /home/tomcat/apache-tomcat-8.0.24/conf/server.xml
+sed -i 's/unpackWARs=.*/unpackWARs="true"/' /home/tomcat/apache-tomcat-8.0.24/conf/server.xml
+sed -i 's/autoDeploy=.*/autoDeploy="true"/' /home/tomcat/apache-tomcat-8.0.24/conf/server.xml
+
+service tomcat restart
+
+cd /home/tomcat/apache-tomcat-8.0.24/jsp.com/
+mkdir ROOT
+cd ROOT/
+echo hello > index.jsp
+
+
+
+
+
+
+
+
+
