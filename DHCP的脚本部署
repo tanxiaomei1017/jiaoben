@@ -1,0 +1,68 @@
+# vim /var/tmp/dhcpd.conf
+#!/bin/bash
+
+
+#这是一个自动安装和自动配置DHCPD的脚本
+# 生产日期：2012-11-07 17：10
+# contact: qq:....   tel:.....
+
+basedir=/var/tmp
+dstdir=/etc
+
+#检查当前用户是不是管理员，如果不是则马上退出自动安装
+[ $UID -eq 0 ] || exit 10
+
+
+#检查软件是否已经安装
+rpm -q dhcp &> /dev/null && echo dhcp已经安装
+
+[ $? -eq 0 ] && exit 10
+
+#开始安装dhcp
+#1)自动生成YUM源
+rm -rf /etc/yum.repos.d/*
+cat > /etc/yum.repos.d/yum.repo << END
+[base]
+name=this is a yum source
+baseurl=ftp://192.168.0.254/pub/Server
+enabled=1
+gpgcheck=0
+END
+
+#2)使用YUM安装
+yum -y install dhcp &> /dev/null
+[ $? -eq 0 ] && echo "<==========安装已经成功了！===========>"
+
+
+
+
+#开始配置DHCP
+cp $basedir/dhcpd.conf.sample $dstdir/dhcpd.conf
+
+
+#启动dhcp服务
+service dhcpd start && chkconfig dhcpd on
+
+echo "<============dhcp一切都ok了！===============>"
+
+
+# vim /var/tmp/dhcpd.conf.sample 
+ddns-update-style interim;
+ignore client-updates;
+
+subnet 192.168.0.0 netmask 255.255.255.0 {
+        option routers                  192.168.0.1;
+        option subnet-mask              255.255.255.0;
+        option domain-name-servers      192.168.1.1;
+        option time-offset              -18000; # Eastern Standard Time
+        range dynamic-bootp 192.168.0.128 192.168.0.254;
+        default-lease-time 21600;
+        max-lease-time 43200;
+}
+
+
+# sh /var/tmp/dhcpd.sh
+
+
+
+

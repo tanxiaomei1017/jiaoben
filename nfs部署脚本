@@ -1,0 +1,75 @@
+NFS部署脚本：
+
+
+vim nfs.sh
+#！/bin/bash
+#1、搭建yum源
+#2、安装软件
+#3、修改配置文件
+#4、启动服务
+#5、测试
+
+read -p "请输入你想共享出来的目录：" DIR
+read -p "请输入你想共享出来的网段：(例如：172.25.0.0/24)：" NETWORK
+
+#1、搭建yum源
+rm -fr /etc/yum.repos.d/*
+cat >/etc/yum.repos.d/base.repo<<EOT
+[base]
+baseurl=http://172.25.254.250/rhel7.2/x86_64/dvd/
+gpgcheck=0
+enabled=1
+EOT
+
+yum clean all &> /dev/null
+
+#2、安装软件
+rpm -q nfs-utils
+[ $? = 0 ] && echo "nfs is already install " || yum -y install nfs-utils &> /dev/null
+yum -y install rpcbind &> /dev/null
+
+iptables -F
+setenforce 0
+
+#3、修改配置文件
+cat > /etc/exports <<END
+$DIR	$NETWORK(rw,sync)
+END
+
+
+#4、创建共享目录
+
+mkdir $DIR -p
+chmod 777 $DIR
+#5、启动服务
+
+systemctl restart rpcbind
+systemctl restart nfs
+
+#6、测试：
+
+showmount -e localhost
+
+[root@rhel7 sysconfig]# sh nfs.sh
+
+
+
+
+
+
+
++++++++++++++++++++++++++++++++
+
+脚本执行：
+	1、脚本无可执行权限：
+		# /bin/sh  /xx/xx.sh		--开启一个新的子shell去执行脚本，脚本不需要可执行权限
+		# /bin/bash /xx/xx.sh
+
+		# source /xx/xx.sh		--强制在当前的shell执行脚本
+		# . /xx/xx.sh
+
+
+	2、脚本拥有可执行权限
+		# chmod +x /xx/xx.sh
+		# /xx/xx.sh
+

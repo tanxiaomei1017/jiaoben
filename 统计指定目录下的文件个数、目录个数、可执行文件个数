@@ -1,0 +1,29 @@
+#!/bin/bash
+read -p "请输入想要查看的目录：" dir
+filecount=0
+dircount=0
+linkcount=0
+cd $ dir
+for i in $(ls)
+do
+	if [ -f $i ]
+	then
+	 let filecount=filecount+1
+	fi
+	if [ -d $i ]
+	then
+	 let dircount=dircount+1
+	fi
+	if [ -L $i ]
+	then
+	 let linkcount=linkcount+1
+	fi
+done
+	echo "filecount=$filecount"
+	echo "dircount=$dircount"
+	echo "linkcount=$linkcount"
+
+
+filecount=find $dir -type f |wc -l
+dircount=find $dir -type d |wc -l
+

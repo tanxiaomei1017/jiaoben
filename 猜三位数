@@ -1,0 +1,27 @@
+#！/bin/bash
+#随机产生一个三位数(100-999)，按位数一个一个的猜（先猜百位，再十位，最后个位)，每位只有五次猜的机会，不成#功就没机会再猜，直到猜成功
+
+echo "猜一个三位数"
+num=$[$RANDOM%900+100]
+for count1 in `seq 6`
+ do
+   [ $count1 -eq 6 ] && echo "你的机会用完了" && exit
+   read -p "请猜百位：" gnum1
+   [ $gnum1 -eq $[$num/100] ] && echo "对了" && break
+done
+
+for count2 in `seq 6`
+do
+   [ $count2 -eq 6 ] && echo "你的机会用完了" && exit
+   read -p "请猜十位：" gnum2
+   [ $gnum2 -eq $[$num%100/10] ] && echo "对了" && break
+ done
+
+for count3 in `seq 6`
+do
+   [ $count3 -eq 6 ] && echo "你的机会用完了" && exit
+  read -p "请猜个位：" gnum3
+   [ $gnum3 -eq $[$num%100%10] ] && echo "对了" && break
+done
+echo "恭喜"
+

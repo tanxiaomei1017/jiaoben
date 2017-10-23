@@ -1,0 +1,12 @@
+#!/bin/bash
+#将/etc/passwd里的用户名分类，分为管理员用户，系统用户，普通用户
+
+for i in `cat /etc/passwd |cut -d: -f1,3`
+do
+        uid=`echo "$i" |cut -d: -f2`
+        name=`echo "$i" |cut -d: -f1`
+        [ $uid -eq 0 ] && echo "$name" >> /tmp/adminuser
+        [ $uid -lt 500 -a $uid -gt 0 ] && echo "$name" >> /tmp/systemuser
+        [ $uid -eq 65534 ] && echo "$name" >> /tmp/systemuser
+        [ $uid -ge 500 -a $uid -ne 65534 ] &&  echo "$name" >> /tmp/normaluser 
+done

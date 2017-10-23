@@ -1,0 +1,17 @@
+#！/bin/bash
+#对多台机器的远程expect操作，假设管理的机器有N台，密码也各不相同（没有ssh等效性)，现在需要在所有机器上都##创建一个文件为/tmp/zhangsan的文件
+sed -i '/^'$1'/d' /root/.ssh/known_hosts
+expect << EOF > /dev/null 2>&1
+spawn ssh $1
+expect "no)?"
+send "yes\r"
+expect "user"
+send "root"
+expect "password:"
+send "123\r"
+expect "# "
+send "touch /tmp/zhangsan\n"
+send "exit\n"
+expect eof
+EOF
+~                 

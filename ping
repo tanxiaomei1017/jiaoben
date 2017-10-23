@@ -1,0 +1,13 @@
+#！/bin/bash
+:> /tmp/tong
+:> /tmp/butong
+for i in {1..254}
+do
+	ping  -c 3 172.25.254.$i &> /dev/null
+	if [ $? -eq 0 ]
+	then
+		echo "172.25.254.$i" >>/tmp/tong
+	else
+		echo "172.25.254.$i" >>/tmp/butong
+	fi
+done

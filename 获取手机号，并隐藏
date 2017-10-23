@@ -1,0 +1,53 @@
+动态获取变量
+
+read
+
+###############
+# -p 提示字符
+# -n 数字
+# -s    密文
+# -t 指定时间
+###############
+
+read -p "请输入你的姓名:" name
+echo -n "Please input your name:"
+read name
+
+echo "Hello,$name"
+
+read -n 2 -p "请输入你的年龄:" age
+echo 
+echo "$name,你现在的年龄是$age岁"
+
+
+read -s -p "请输入你的银行卡密码:" passwd
+echo
+echo "$name,你的密码为$passwd"
+
+read -t 2 -p "是个男人就在2秒内输入1-9:" num
+echo 
+echo "$name,你输入的数字是$num"
+
+实例：
+
+1、获取手机号码，并隐藏中间5位
+
+
+read -s -p "请输入你的手机号：" num
+echo
+head=`echo $num |cut -c1-3`
+tail=`echo $num |cut -c8-11` 
+echo "你的手机号为 $head****$tail "
+或 echo "你的手机号为${num:0:3}****${num:0:4}"
+
+
+#vim num.sh
+#!/bin/bash
+read -n 11 -s -p  "请输入你的手机号： " number
+
+echo $ {number:0:3}*****{number:8:3}
+
+#sh num.sh
+
+
+
